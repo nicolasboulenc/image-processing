@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Image Processing</title>
+	<style>
+	body {
+		font-family: sans-serif;
+		margin: 0;
+		padding: 0;
+		background-color: #0D1B2A;
+		height: 100vh;
+		overflow: hidden;
+	}
+
+	.ui {
+		display: flex;
+		flex-direction: column;
+		min-height: 33vh;
+		max-height: 90vh;
+		min-width: 98vw;
+		resize: vertical;
+		overflow: auto;
+		background-color: #0D1B2A;
+		border-bottom: 2px solid darkgray;
+	}
+
+	.menu {
+		padding: 1rem;
+		flex: 0 0;
+	}
+
+	.components {
+		padding: 1rem;
+		flex: 1 0;
+	}
+
+	.render {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-top: 1rem;
+	}
+
+	.component {
+		position: absolute;
+		background-color: #415A77;
+		border: 1px solid #E0E1DD;
+		color: #E0E1DD;
+		user-select: none;
+		width: 125px;
+	}
+
+	.component > .title {
+		box-sizing: border-box;
+		top: 0px;
+		background-color: #1B263B;
+		font-weight: bold;
+		color: #778DA9;
+		width: 100%;
+		padding: .5rem;
+	}
+
+	.component input[type="range"] {
+		width: 100%;
+	}
+
+	.component > .connections {
+		display: flex;
+		flex-direction: column;
+		margin-bottom: .25rem;
+	}
+
+	.input {
+		display: flex;
+		align-items: center;
+		margin-left: -7px;
+		margin-top: .25rem;
+	}
+
+	.input > .label {
+		margin-left: .25rem;
+	}
+
+	.output {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		margin-right: -7px;
+		margin-top: .25rem;
+	}
+
+	.output > .label {
+		margin-right: .25rem;
+	}
+
+	.connector {
+		border-radius: 10px;
+		border: 1px solid #E0E1DD;
+		background-color: darkgrey;
+		width: 10px;
+		height: 10px;
+	}
+
+	.component > .params {
+		border-top: 1px solid #E0E1DD;
+		padding: .25rem;
+	}
+
+	#image {
+		top: 120px;
+		left: 60px;
+	}
+
+	#gray {
+		top: 120px;
+		left: 320px;
+	}
+
+	#bayer {
+		top: 290px;
+		left: 320px;
+	}
+
+	#dither {
+		top: 180px;
+		left: 590px;
+	}
+
+	#output {
+		top: 242px;
+		left: 840px;
+	}
+
+	</style>
+</head>
+<body>
+<div class="ui">
+	<div class="menu">
+		<button data-op="color">Color</button>
+		<button data-op="gray">Gray</button>
+		<button data-op="gray-lum">Gray Lum</button>
+		<button data-op="gray-r">Gray R</button>
+		<button data-op="gray-g">Gray G</button>
+		<button data-op="gray-b">Gray B</button>
+		<input id="threshold" data-op="threshold" type="range" value="127" min="0" max="255" step="1" />
+		<button data-op="noise-white">White Noise</button>
+		<button data-op="noise-bayer">Bayer Matrix</button>
+		<button data-op="dither-threshold">Dither Threshold</button>
+		<button data-op="dither-only">Dither Only</button>
+	</div>
+
+	<div class="components">
+
+		<div class="component" id="image">
+			<div class="title">Image</div>
+			<div class="connections">
+				<div class="output">
+					<div class="label">Output</div><div class="connector"></div>
+				</div>
+			</div>
+			<div class="params">
+				<div>
+					<input type="checkbox" data-radio="image-src" value="viking-boat.jpg" checked>
+					<label for="">Ship</label>
+				</div>
+				<div>
+					<input type="checkbox" data-radio="image-src" value="michelangelo.png">
+					<label for="">David</label>
+				</div>
+				<div>
+					<input type="checkbox" data-radio="image-src" value="surma.png">
+					<label for="">Bridge</label>
+				</div>
+			</div>
+		</div>
+
+		<div class="component" id="gray">
+			<div class="title">Gray</div>
+			<div class="connections">
+				<div class="input">
+					<div class="connector"></div><div class="label">Input</div>
+				</div>
+				<div class="output">
+					<div class="label">Output</div><div class="connector"></div>
+				</div>
+			</div>
+			<div class="params">
+				<div>
+					<input type="checkbox" data-radio="gray-type" value="average" checked>
+					<label for="">Average</label>
+				</div>
+				<div>
+					<input type="checkbox" data-radio="gray-type" value="luma">
+					<label for="">Luma</label>
+				</div>
+			</div>
+		</div>
+
+		<div class="component" id="dither">
+			<div class="title">Dither Threshold</div>
+			<div class="connections">
+				<div class="input"><div class="connector"></div><div class="label">Source</div></div>
+				<div class="input"><div class="connector"></div><div class="label">Matrix</div></div>
+				<div class="output"><div class="label">Output</div><div class="connector"></div></div>
+			</div>
+			<div class="params">
+			</div>
+		</div>
+
+
+		<div class="component" id="bayer">
+			<div class="title">Bayer Matrix</div>
+			<div class="connections">
+				<div class="output"><div class="label">Output</div><div class="connector"></div></div>
+			</div>
+			<div class="params">
+				<div>
+					<label for="gray-average">Level</label>
+					<input type="range" min="0" max="2" value="2" />
+				</div>
+			</div>
+		</div>
+
+		<div class="component" id="output">
+			<div class="title">Canvas</div>
+			<div class="connections">
+				<div class="input"><div class="connector"></div><div class="label">Input</div></div>
+			</div>
+			<div class="params">
+			</div>
+		</div>
+
+	</div>
+</div>
+<div class="render">
+	<canvas id="canvas"></canvas>
+</div>
+
+<script src="plain-draggable.min.js"></script>
+<script src="leader-line.min.js"></script>
+<script>
+
+
+const draggable0 = new PlainDraggable(document.querySelector('#image'));
+const draggable1 = new PlainDraggable(document.querySelector('#gray'));
+const draggable2 = new PlainDraggable(document.querySelector('#bayer'));
+const draggable3 = new PlainDraggable(document.querySelector('#dither'));
+const draggable4 = new PlainDraggable(document.querySelector('#output'));
+
+const line0 = new LeaderLine( document.querySelector('#image .output .connector'), document.querySelector('#gray .input .connector') );
+draggable0.onDrag = function(position) { line0.position() }
+draggable1.onDrag = function(position) { line0.position(); line1.position() }
+
+const line1 = new LeaderLine( document.querySelector('#gray .output .connector'), document.querySelector('#dither > .connections > .input:nth-child(1) > .connector') );
+
+const line2 = new LeaderLine( document.querySelector('#bayer .output .connector'), document.querySelector('#dither > .connections > .input:nth-child(2) > .connector') );
+draggable2.onDrag = function(position) { line2.position() }
+
+const line3 = new LeaderLine( document.querySelector('#dither .output .connector'), document.querySelector('#output .input .connector') );
+draggable3.onDrag = function(position) { line1.position(); line2.position(); line3.position() }
+draggable4.onDrag = function(position) { line3.position() }
+
+
+document.querySelector('#image .title').addEventListener('mousedown', function(evt) { console.log('1', evt.currentTarget) } )
+
+draggable2.onDragStart = function(coords) {
+	console.log('r')
+};
+
+
+{
+	const elems = document.querySelectorAll('.component input')
+	for(const elem of elems) {
+		elem.addEventListener('mousedown', function(evt) { evt.stopImmediatePropagation() /* to prevent dragging on inputs */ })
+	}
+}
+
+
+
+const scale = 1;
+
+const app = {
+	canvas: null,
+	ctx: null,
+	img: null,
+	color: null,
+	gray: null,
+	threshold: null,
+	noise: null,
+	dither: null
+}
+
+// const gray = {
+// 	type: 'average' // average, luma
+// }
+
+// const channel_mixer = {
+
+// }
+
+// const thresh = {
+// 	type: 'value', // value, matrix
+// 	matrix: null
+// }
+
+// const noise_white = {
+
+// }
+
+// const bayer_matrix = {
+// 	level: 0 // 0, 1, 2
+// }
+
+app.canvas = document.getElementById('canvas')
+app.ctx = canvas.getContext('2d')
+
+const elems = document.querySelectorAll('[data-op]')
+for(const elem of elems) {
+	elem.addEventListener('click', button_on_click)
+}
+
+document.querySelector('[data-op=threshold]').addEventListener('change', button_on_click)
+
+app.img = new Image()
+app.img.onload = image_on_load
+app.img.src = './viking-boat.jpg'
+// app.img.src = 'Michelangelo\'s_David_-_63_grijswaarden.png'
+
+
+function image_on_load(evt) {
+
+	app.canvas.width = app.img.width / scale
+	app.canvas.height = app.img.height / scale
+
+	app.ctx.drawImage(app.img, 0, 0, app.img.width/scale, app.img.height/scale)
+	app.color = app.ctx.getImageData(0, 0, app.canvas.width, app.canvas.height)
+}
+
+
+function button_on_click(evt) {
+
+	const op = evt.currentTarget.dataset['op']
+
+	if(op === 'color') {
+		app.ctx.putImageData(app.color, 0, 0)
+	}
+	else if(op === 'gray') {
+		app.gray = gray_avg(app.color)
+		app.ctx.putImageData(app.gray, 0, 0)
+	}
+	else if(op === 'gray-lum') {
+		app.gray = gray_lum(app.color)
+		app.ctx.putImageData(app.gray, 0, 0)
+	}
+	else if(op === 'gray-r') {
+		app.gray = gray_channel(app.color, 0)
+		app.ctx.putImageData(app.gray, 0, 0)
+	}
+	else if(op === 'gray-g') {
+		app.gray = gray_channel(app.color, 1)
+		app.ctx.putImageData(app.gray, 0, 0)
+	}
+	else if(op === 'gray-b') {
+		app.gray = gray_channel(app.color, 2)
+		app.ctx.putImageData(app.gray, 0, 0)
+	}
+	else if(op === 'threshold') {
+		const t = document.querySelector('#threshold').value
+		app.threshold = threshold(app.gray, t)
+		app.ctx.putImageData(app.threshold, 0, 0)
+	}
+	else if(op === 'noise-white') {
+		app.noise = noise_white(app.color)
+		app.ctx.putImageData(app.noise, 0, 0)
+	}
+	else if(op === 'noise-bayer') {
+		app.noise = bayer_matrix(2)
+		app.ctx.putImageData(app.noise, 0, 0)
+	}
+	else if(op === 'dither-only') {
+		const t = document.querySelector('#threshold').value
+		// app.dither = dither(app.gray, app.noise, t)
+		app.dither = dither(app.gray, app.noise, t)
+		app.ctx.putImageData(app.dither, 0, 0)
+	}
+	else if(op === 'dither-threshold') {
+		app.dither = dither(app.gray, app.noise)
+		app.ctx.putImageData(app.dither, 0, 0)
+	}
+}
+
+
+function gray_avg(src) {
+
+	let dst = app.ctx.createImageData(src)
+	for (let i=0; i<src.data.length; i+=4) {
+
+		let r = src.data[i + 0]
+		let g = src.data[i + 1]
+		let b = src.data[i + 2]
+
+		const gr = Math.round( (r + g + b) / 3 )
+		dst.data[i + 0] = gr
+		dst.data[i + 1] = gr
+		dst.data[i + 2] = gr
+		dst.data[i + 3] = 255
+	}
+	return dst
+}
+
+
+function gray_lum(src) {
+
+	let dst = app.ctx.createImageData(src)
+	for (let i=0; i<src.data.length; i+=4) {
+
+		let r = src.data[i + 0]
+		let g = src.data[i + 1]
+		let b = src.data[i + 2]
+
+		r = ( r <= 0.04045 ? r / 12.92 : Math.pow( (r + 0.055) / 1.055, 2.4 ) )
+		g = ( g <= 0.04045 ? g / 12.92 : Math.pow( (g + 0.055) / 1.055, 2.4 ) )
+		b = ( b <= 0.04045 ? b / 12.92 : Math.pow( (b + 0.055) / 1.055, 2.4 ) )
+
+		let gr = Math.round(r * 0.2126 + g * 0.7152 + b * 0.0722)
+		if(gr <= 0.0031308) {
+			gr = gr * 12.92
+		}
+		else {
+			gr = 1.055 * Math.pow(gr, 1/2.4) - 0.055
+		}
+
+		dst.data[i + 0] = gr
+		dst.data[i + 1] = gr
+		dst.data[i + 2] = gr
+		dst.data[i + 3] = 255
+	}
+	return dst
+}
+
+
+function gray_channel(src, channel) {
+
+	let dst = app.ctx.createImageData(src)
+	for (let i=0; i<src.data.length; i+=4) {
+
+		const gr = src.data[i + channel]
+
+		dst.data[i + 0] = gr
+		dst.data[i + 1] = gr
+		dst.data[i + 2] = gr
+		dst.data[i + 3] = 255
+	}
+	return dst
+}
+
+
+function threshold(src, threshold) {
+
+	let dst = app.ctx.createImageData(src)
+	for (let i=0; i<src.data.length; i+=4) {
+
+		if(src.data[i + 0] < threshold) {
+			dst.data[i + 0] = 0
+			dst.data[i + 1] = 0
+			dst.data[i + 2] = 0
+		}
+		else {
+			dst.data[i + 0] = 255
+			dst.data[i + 1] = 255
+			dst.data[i + 2] = 255
+		}
+		dst.data[i + 3] = 255
+	}
+	return dst
+}
+
+
+function noise_white(src) {
+
+	let dst = app.ctx.createImageData(src)
+	for (let i=0; i<src.data.length; i+=4) {
+
+		const gr = Math.random() * 256
+
+		dst.data[i + 0] = gr
+		dst.data[i + 1] = gr
+		dst.data[i + 2] = gr
+		dst.data[i + 3] = 255
+	}
+	return dst
+}
+
+function bayer_matrix(n=0) {
+
+	if(n < 0) return []
+	if(n > 2) return []
+
+	const matrices = [
+				[ 0, 2,
+				 3, 1 ],
+
+				[ 0,  8,  2,  10,
+				 12, 4,  14, 6,
+				 3,  11, 1,  9,
+				 15, 7,  13, 5 ],
+
+				[ 0, 32, 8, 40, 2, 34, 10, 42,
+				 48, 16, 56, 24, 50, 18, 58, 26,
+				 12, 44, 4, 36, 14, 46, 6, 38,
+				 60, 28, 52, 20, 62, 30, 54, 22,
+				 3, 35, 11, 43, 1, 33, 9, 41,
+				 51, 19, 59, 27, 49, 17, 57, 25,
+				 15, 47, 7, 39, 13, 45, 5, 37,
+				 63, 31, 55, 23, 61, 29, 53, 21 ]
+	]
+	const m1 = matrices[n]
+	const dst = app.ctx.createImageData(Math.pow(2, n + 1), Math.pow(2, n + 1))
+
+	const count = Math.pow(2, n + 1) * Math.pow(2, n + 1) * 4
+	const unit = 256 / ( Math.pow(2, n + 1) * Math.pow(2, n + 1) )
+
+	for(let i=0; i<count; i+=4) {
+		dst.data[i + 0] = m1[i/4] * unit
+		dst.data[i + 1] = m1[i/4] * unit
+		dst.data[i + 2] = m1[i/4] * unit
+		dst.data[i + 3] = 255
+	}
+
+	return dst
+}
+
+
+function dither(src, noise, threshold=-1) {
+
+
+	if(threshold !== -1) {
+		const dst = app.ctx.createImageData(src)
+		for (let i=0; i<src.data.length; i+=4) {
+
+			const offset = noise.data[i] - 256 / 2
+			if(src.data[i + 0] + offset > threshold) {
+				dst.data[i + 0] = 255
+				dst.data[i + 1] = 255
+				dst.data[i + 2] = 255
+			}
+			dst.data[i + 3] = 255
+		}
+		return dst
+	}
+	else {
+		const dst = app.ctx.createImageData(src)
+		for (let i=0; i<src.data.length; i+=4) {
+
+			const src_x = (i/4) % src.width
+			const src_y = Math.floor((i/4) / src.width)
+			const noise_x = src_x % noise.width
+			const noise_y = src_y % noise.height
+			const noise_index = (noise_x + noise_y * noise.width) * 4
+
+			const threshold = noise.data[noise_index]
+			if(src.data[i + 0] > threshold) {
+				dst.data[i + 0] = 255
+				dst.data[i + 1] = 255
+				dst.data[i + 2] = 255
+			}
+			dst.data[i + 3] = 255
+		}
+		return dst
+	}
+}
+
+</script>
+</body>
+</html>
