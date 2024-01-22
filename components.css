@@ -1,19 +1,25 @@
-
+:root {
+    --component-border: 3px;
+    --connector-diameter: 12px;
+    --connector-border: 1px;
+    --connector-radius: calc(var(--connector-diameter) / 2);
+}
+  
 .component {
     position: absolute;
     background-color: #415A77;
-    border: 1px solid #E0E1DD;
+    border: var(--component-border) solid #E0E1DD;
     color: #E0E1DD;
     user-select: none;
     width: 125px;
 }
 
 .component.selected {
-    border: 1px dashed #E0E1DD;
+    border-style: dashed;
 }
 
 .component.rendering {
-    border: 1px solid #722F37;
+    border-color: #ff8052;
 }
 
 .component > .title {
@@ -33,13 +39,13 @@
 .component > .connections {
     display: flex;
     flex-direction: column;
-    margin-bottom: .25rem;
+    padding-bottom: .25rem;
 }
 
 .input {
     display: flex;
     align-items: center;
-    margin-left: -7px;
+    margin-left: calc(var(--connector-radius) * (-1) - var(--connector-border) - var(--component-border) / 2);
     margin-top: .25rem;
 }
 
@@ -51,7 +57,7 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    margin-right: -7px;
+    margin-right: calc(var(--connector-radius) * (-1) - var(--connector-border) - var(--component-border) / 2);
     margin-top: .25rem;
 }
 
@@ -61,11 +67,11 @@
 
 .connector {
     box-sizing: content-box;
-    border-radius: 12px;
-    border: 1px solid #E0E1DD;
+    border-radius: var(--connector-diameter);
+    border: var(--connector-border) solid #E0E1DD;
     background-color: #ff8052;
-    width: 12px;
-    height: 12px;
+    width: var(--connector-diameter);
+    height: var(--connector-diameter);
 }
 
 .component > .params {

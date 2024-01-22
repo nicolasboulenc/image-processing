@@ -1,17 +1,17 @@
-'use strict';
+"use strict";
+// @ts-check
 
 const app = {
-	scale: 1,
+	scale: 1,				// scale image on canvas?
 	canvas: null,
 	ctx: null,
-	nodes: [],
-	id: 0,
-	selected_node: null,
-	rendering_node: null,
-	conn_start:  null,
-	conn_line : null,
-	draggables: [],
-	connections: []
+	id: 0,					// used to generate ids
+	components: [],			// list of { node: node, draggable: draggable }
+	connections: [],		// list of { output: output_node, input: input_node, line: leader_line }
+	selected_node: null,	// selected node
+	rendering_node: null,	// rendered node
+	conn_start:  null,		// when creating connection, starting html elem
+	conn_line : null,		// the LeaderLine object used to connect
 }
 
 
@@ -31,29 +31,6 @@ function init() {
 	document.addEventListener('keypress', window_onkeypressed)
 	window.addEventListener('mouseup', window_onmouseup)
 	window.addEventListener('mousemove', window_onmousemove)
-}
-
-
-function make_draggable(node) {
-
-	const draggable = new PlainDraggable(node.elem)
-	draggable.onDrag = node_ondrag
-	app.draggables.push(draggable)
-
-	let elems = node.elem.querySelectorAll('.params div')
-	for(const elem of elems) {
-		elem.addEventListener('mousedown', function(evt) { evt.stopImmediatePropagation() /* to prevent dragging on inputs */ })
-	}
-}
-
-
-function make_connectable(node) {
-
-	const elems = node.elem.querySelectorAll('.connections .connector')
-	for(const elem of elems) {
-		elem.addEventListener('mousedown', connector_onmousedown)
-		elem.addEventListener('mouseup', connector_onmouseup)
-	}
 }
 
 
@@ -97,17 +74,26 @@ function button_onclick(evt) {
 
 	document.querySelector('.components').append(node.elem)
 
-	node.elem.addEventListener('mousedown', node_onmousedown)
-	make_draggable(node)
-	make_connectable(node)
+	node.elem.addEventListener('mouseover', node_onmouseover)	// to select component
+	node.elem.addEventListener('mouseout', node_onmouseout)		// to de-select component
 
-	app.nodes.push(node)
-
-	if(node !== null && app.nodes.length === 1) {
-		make_rendering(node.id)
+	// to connect components
+	const elems = node.elem.querySelectorAll('.connections .connector')
+	for(const elem of elems) {
+		elem.addEventListener('mousedown', connector_onmousedown)	
+		elem.addEventListener('mouseup', connector_onmouseup)
 	}
 
-	render()
+	// create draggable
+	const draggable = new PlainDraggable(node.elem)
+	draggable.handle = node.elem.querySelector(".title")
+	draggable.onDrag = node_ondrag
+	app.components.push({node: node, draggable: draggable})
+
+	if(node !== null && app.components.length === 1) {
+		make_rendering(node.id)
+		render()
+	}
 }
 
 
@@ -142,20 +128,25 @@ function process(probe) {
 
 function make_selected(id) {
 
+	// node already selected
 	if(app.selected_node !== null && app.selected_node.id === id) return
 	
+	// remove selected class
 	if(app.selected_node !== null) {
 		app.selected_node.elem.classList.remove("selected")
 	}
+	app.selected_node = null
 
-	for(const node of app.nodes) {
-		if(node.id === id) {
-			app.selected_node = node
+	// add selected class
+	if(id === "") return
+
+	for(const comp of app.components) {
+		if(comp.node.id === id) {
+			app.selected_node = comp.node
+			app.selected_node.elem.classList.add("selected")
 			break
 		}
 	}
-
-	app.selected_node.elem.classList.add("selected")
 }
 
 
@@ -167,14 +158,13 @@ function make_rendering(id) {
 		app.rendering_node.elem.classList.remove("rendering")
 	}
 
-	for(const node of app.nodes) {
-		if(node.id === id) {
-			app.rendering_node = node
+	for(const comp of app.components) {
+		if(comp.node.id === id) {
+			app.rendering_node = comp.node
+			app.rendering_node.elem.classList.add("rendering")
 			break
 		}
 	}
-
-	app.rendering_node.elem.classList.add("rendering")
 }
 
 
@@ -205,14 +195,6 @@ function connector_onmouseup(evt) {
 
 	if(app.conn_start === null) return
 
-	if(conn_start.dataset.type === conn_end.dataset.type) {
-		console.log('same type')
-		app.conn_start = null
-		app.conn_line.remove()
-		app.conn_line = null
-		return	
-	}
-
 	if(conn_start.dataset.id === conn_end.dataset.id) {
 		console.log('same id')
 		app.conn_start = null
@@ -221,25 +203,33 @@ function connector_onmouseup(evt) {
 		return	
 	}
 
+	if(conn_start.dataset.type === conn_end.dataset.type) {
+		console.log('same type')
+		app.conn_start = null
+		app.conn_line.remove()
+		app.conn_line = null
+		return	
+	}
+
 	let input_node = null
-	for(const node of app.nodes) {
-		if(node.id === conn_end.dataset.id) {
-			input_node = node
+	for(const comp of app.components) {
+		if(comp.node.id === conn_end.dataset.id) {
+			input_node = comp.node
 			break
 		}
 	}
 
 	let output_node = null
-	for(const node of app.nodes) {
-		if(node.id === conn_start.dataset.id) {
-			output_node = node
+	for(const comp of app.components) {
+		if(comp.node.id === conn_start.dataset.id) {
+			output_node = comp.node
 			break
 		}
 	}
 
 	const name = evt.currentTarget.dataset['name']
 
-	const curr_input = input_node.get_input(name)
+	const curr_input = input_node.get_input_node(name)
 	if(curr_input !== null && curr_input.id === output_node.id) {
 		console.log('same connection')
 		app.conn_start = null
@@ -251,16 +241,13 @@ function connector_onmouseup(evt) {
 		console.error('re-connect')
 	}
 
-	output_node.set_output(app.conn_start.dataset["name"], input_node)
-	input_node.set_input(name, output_node)
+	output_node.set_output_node(app.conn_start.dataset["name"], input_node)
+	input_node.set_input_node(name, output_node)
 	// input_node.process()
 	const line = new LeaderLine(conn_start, conn_end)
 	// app.lines.push(line)
 	app.connections.push({ output: output_node, input: input_node, line: line })
 	
-	document.querySelector(`svg > g > use[href="#leader-line-${line._id}-line-shape"]`).addEventListener("mousemove", evt=>console.log(evt))
-
-
 	app.conn_start = null
 	app.conn_line.remove()
 	app.conn_line = null
@@ -290,14 +277,41 @@ function window_onmousemove(evt) {
 
 
 function window_onkeypressed(evt) {
-	if(evt.code === "Delete") {
-		console.log("To impletement: delete node")
+	if(evt.code === "KeyD") {
 		console.log(`Remove: current ${app.selected_node.id}`)
-		// remove from draggable
-		// remove dom elem
-		// remove svg lines
-		// remove connections to and from other nodes
+		app.selected_node.disconnect()
 
+		// remove connections
+		const connections = []
+		for(const conn of app.connections) {
+			// { output: output_node, input: input_node, line: leader_line }
+			if(conn.output.id === app.selected_node.id || conn.input.id === app.selected_node.id) {
+				conn.line.remove()
+			}
+			else {
+				connections.push(conn)
+			}
+		}
+		app.connections = connections
+
+		// remove components
+		const components = []
+		for(const comp of app.components) {
+			if(comp.node.id === app.selected_node.id) {
+				comp.node.elem.remove()
+				comp.draggable.remove()
+			}
+			else {
+				components.push(comp)
+			}
+		}
+		app.components = components
+
+		// render
+		if(app.selected_node.id === app.rendering_node.id && app.components.length > 0) {
+			make_rendering(app.components[0].node.id)
+			render()
+		}
 	}
 
 	if(evt.code === "KeyR") {
@@ -319,17 +333,15 @@ function node_ondrag(evt) {
 }
 
 
-function node_onmousedown(evt) {
-	
+function node_onmouseover(evt) {
+
 	const id = evt.currentTarget.getAttribute('id')
 	make_selected(id)
 }
 
 
-function connection_remove(id) {
+function node_onmouseout(evt) {
 
-	console.log(`#leader-line-${id}-line-path`)
-	const elem = document.querySelector(`#leader-line-${id}-line-path`)
-	const parent = elem.parentNode.parentNode.remove()
-	// parent.remove()
+	make_selected("")
 }
+
