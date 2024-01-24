@@ -7,11 +7,11 @@ class Node_Template {
 
 	constructor(options = {}) {
 
-		this.#id = ""				// id of the html element
-		this.callback = null		// called when?
-		this.elem = null			// the html element
-		this.input_nodes = null		// map
-		this.output_nodes = null	// map
+		this.#id = ""					// id of the html element
+		this.callback = null			// called when?
+		this.elem = null				// the html element
+		this.input_connections = null	// map(name: String) list of { output_node: node_connected_to_this_input, output_name: output_name_of_that_node }
+		this.output_nodes = null		// map(name: String) list of nodes
 		this.outputs = { "default": null }
 
 		if(typeof options.id !== "undefined") {
@@ -30,12 +30,12 @@ class Node_Template {
 
 	init_connections(connections) {
 
-		this.input_nodes = new Map()
+		this.input_connections = new Map()
 		this.output_nodes = new Map()
 
 		for(const conn of connections) {
 			if(conn.type === "input") {
-				this.input_nodes.set(conn.name, null)
+				this.input_connections.set(conn.name, null)
 			}
 			else if(conn.type === "output") {
 				this.output_nodes.set(conn.name, null)
@@ -65,13 +65,27 @@ class Node_Template {
 	}
 
 
-	get_input_node(name) {
-		return this.input_nodes.get(name)
+	get_input_connection(input_name) {
+		return this.input_connections.get(input_name)
 	}
 
 
-	set_input_node(name, node) {
-		this.input_nodes.set(name, node)
+	set_input_connection(input_name, output_node=null, output_name="") {
+		if(output_node === null) {
+			this.input_connections.set(input_name, null)	
+		}
+		else {
+			this.input_connections.set(input_name, { "output_node": output_node, "output_name": output_name })
+		}
+	}
+
+
+	get_input(input_name) {
+		const conn = this.input_connections.get(input_name) // { node: node, output: name}
+		if(conn === null) return null
+	
+		const input = conn.output_node.get_output(conn.output_name)
+		return input
 	}
 
 
@@ -85,30 +99,18 @@ class Node_Template {
 	}
 
 
-	get_outputs() {
-		return Object.values(this.output_nodes)
-	}
+	get_output(output_name) {
 
-
-	get_output(for_node=null) {
-
-		if(for_node === null) return this.outputs["default"] 
-
-		const names = Object.getOwnPropertyNames(this.output_nodes)
-		for(const name of names) {
-			if(this.output_nodes[name] === for_node) {
-				return this.outputs[name]
-			}
-		}
-		return this.outputs["default"]
+		if(typeof this.outputs[output_name] === "undefined") return this.outputs["default"] 
+		return this.outputs[output_name]
 	}
 
 
 	disconnect_node(node_id) {
 
-		for(const [name, node] of this.input_nodes) {
-			if(node !== null && node.id === node_id) {
-				this.input_nodes.set(name, null)
+		for(const [name, conn] of this.input_connections) {
+			if(conn.output_node !== null && conn.output_node.id === node_id) {
+				this.input_connections.set(name, { "output_node": null, "output_name": "" })
 			}
 		}
 
@@ -122,9 +124,9 @@ class Node_Template {
 
 	disconnect() {
 
-		for(const [name, node] of this.input_nodes) {
-			if(node !== null) {
-				node.disconnect_node(this.id)
+		for(const [name, conn] of this.input_connections) {
+			if(conn !== null) {
+				conn.output_node.disconnect_node(this.id)
 			}
 		}
 
@@ -150,7 +152,7 @@ class Node_Template {
 		
 		let conns = `<div class="connections">`
 
-		const inputs = this.input_nodes.keys()
+		const inputs = this.input_connections.keys()
 		for(const input of inputs) {
 			conns += `<div class="input"><div class="connector" data-id="${this.#id}" data-type="input" data-name="${input}"></div><div class="label">${input}</div></div>`
 		}
@@ -168,6 +170,16 @@ class Node_Template {
 	}
 
 	process() {
+	}
+
+
+	process_bwd() {
+		for(const [name, conn] of this.input_connections) {
+			if(conn !== null && conn.output_node !== null) {
+				conn.output_node.process_bwd()
+			}
+		}
+		this.process()
 	}
 }
 
@@ -322,14 +334,15 @@ class Node_Gray extends Node_Template {
 
 	process() {
 
-		if(this.get_input_node("input") === null) return
-		// if(this.input_nodes.input.output === null) return	// this shouldnt happen
+		const conn = this.get_input_connection("input")
+		if(conn === null) return
 
+		const input = this.get_input("input")
 		if(this.current === "average") {
-			this.outputs["output"] = this.gray_avg(this.get_input_node("input").get_output(this))
+			this.outputs["output"] = this.gray_avg(input)
 		}
 		else if(this.current === "luminance") {
-			this.outputs["output"] = this.gray_lum(this.get_input_node("input").get_output(this))
+			this.outputs["output"] = this.gray_lum(input)
 		}
 		this.outputs["default"] = this.outputs["output"]
 	}
@@ -511,13 +524,15 @@ class Node_Dither_Threshold extends Node_Template {
 
 	process() {
 
-		if(this.get_input_node("grayscale") === null) return
-		if(this.get_input_node("grayscale").output === null) return
+		const conn_g = this.get_input_connection("grayscale")
+		const conn_p = this.get_input_connection("pattern")
 
-		if(this.get_input_node("pattern") === null) return
-		if(this.get_input_node("pattern").output === null) return
+		if(conn_g === null || conn_p === null) return
 
-		this.outputs["output"] = this.dither(this.get_input_node("grayscale").get_output(this), this.get_input_node("pattern").get_output(this))
+		const grayscale = this.get_input("grayscale")
+		const pattern = this.get_input("pattern")
+
+		this.outputs["output"] = this.dither(grayscale, pattern)
 		this.outputs["default"] = this.outputs["output"]
 	}
 
@@ -573,10 +588,10 @@ class Node_Threshold extends Node_Template {
 
 	process() {
 
-		if(this.get_input_node("input") === null) return
-		if(this.get_input_node("input").output === null) return
+		if(this.get_input_connection("input") === null) return
+		if(this.get_input_connection("input").output === null) return
 
-		this.outputs["output"] = this.threshold(this.get_input_node("input").get_output(this))
+		this.outputs["output"] = this.threshold(this.get_input_connection("input").get_output(this))
 		this.outputs["default"] = this.outputs["output"]
 	}
 
@@ -614,10 +629,12 @@ class Node_RGB_Splitter extends Node_Template {
 	}
 
 	process() {
-		if(this.get_input_node("input") === null) return
-		if(this.get_input_node("input").output === null) return
 
-		this.split(this.get_input_node("input").get_output(this))
+		const conn = this.get_input_connection("input")
+		if(conn === null) return
+
+		const input = this.get_input("input")
+		this.split(input)
 	}
 
 	split(src) {
@@ -625,25 +642,25 @@ class Node_RGB_Splitter extends Node_Template {
 		const dstR = new ImageData(src.width, src.height)
 		for (let i=0; i<src.data.length; i+=4) {
 			dstR.data[i + 0] = src.data[i + 0]
-			dstR.data[i + 1] = 0
-			dstR.data[i + 2] = 0
+			dstR.data[i + 1] = src.data[i + 0]
+			dstR.data[i + 2] = src.data[i + 0]
 			dstR.data[i + 3] = 255
 		}
 		this.outputs["R"] = dstR
 
 		const dstG = new ImageData(src.width, src.height)
 		for (let i=0; i<src.data.length; i+=4) {
-			dstG.data[i + 0] = 0
+			dstG.data[i + 0] = src.data[i + 1]
 			dstG.data[i + 1] = src.data[i + 1]
-			dstG.data[i + 2] = 0
+			dstG.data[i + 2] = src.data[i + 1]
 			dstG.data[i + 3] = 255
 		}
 		this.outputs["G"] = dstG
 
 		const dstB = new ImageData(src.width, src.height)
 		for (let i=0; i<src.data.length; i+=4) {
-			dstB.data[i + 0] = 0
-			dstB.data[i + 1] = 0
+			dstB.data[i + 0] = src.data[i + 2]
+			dstB.data[i + 1] = src.data[i + 2]
 			dstB.data[i + 2] = src.data[i + 2]
 			dstB.data[i + 3] = 255
 		}
@@ -666,14 +683,11 @@ class Node_RGB_Merger extends Node_Template {
 	}
 
 	process() {
-		if(	this.get_input_node("R") === null && this.get_input_node("G") === null && this.get_input_node("B") === null) return
-		if(	this.get_input_node("R") !== null && this.get_input_node("R").get_output(this) === null && 
-			this.get_input_node("G") !== null && this.get_input_node("G").get_output(this) === null && 
-			this.get_input_node("B") !== null && this.get_input_node("B").get_output(this) === null ) return
+		if(	this.get_input_connection("R") === null && this.get_input_connection("G") === null && this.get_input_connection("B") === null) return
 
-		const r = this.get_input_node("R").get_output(this)
-		const g = this.get_input_node("G").get_output(this)
-		const b = this.get_input_node("B").get_output(this)
+		const r = this.get_input("R")
+		const g = this.get_input("G")
+		const b = this.get_input("B")
 		this.merge(r, g, b)
 	}
 
@@ -717,10 +731,12 @@ class Node_Output extends Node_Template {
 	}
 
 	process() {
-		if(this.get_input_node("input") === null) return
-		if(this.get_input_node("input").output === null) return
 
-		this.outputs["output"] = this.get_input_node("input").get_output(this)
+		const conn = this.get_input_connection("input")
+		if(conn === null) return
+
+		const input = this.get_input("input")
+		this.outputs["output"] = input
 		this.outputs["default"] = this.outputs["output"]
 	}
 }

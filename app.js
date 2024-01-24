@@ -97,13 +97,11 @@ function button_onclick(evt) {
 }
 
 
-function render(node=null) {
+function render() {
 
 	if(app.rendering_node === null) return
 
-	// process all nodes after 'node changed'
-	process(node)
-	process(app.rendering_node)
+	app.rendering_node.process_all()
 
 	const buffer = app.rendering_node.get_output()
 	if(buffer === null) return
@@ -111,18 +109,6 @@ function render(node=null) {
 	app.canvas.width = buffer.width / app.scale
 	app.canvas.height = buffer.height / app.scale
 	app.ctx.putImageData(buffer, 0, 0)
-}
-
-
-function process(probe) {
-
-	if(probe === null) return
-
-	probe.process()
-	const outputs = probe.get_outputs()
-	for(const node of outputs) {
-		process(node)
-	}
 }
 
 
@@ -176,7 +162,8 @@ function generate_id() {
 function connector_onmousedown(evt) {
 
 	// to stop component dragging from connector
-	evt.stopImmediatePropagation()
+	// evt.stopImmediatePropagation()
+	// this is not needed since using PlainDraggable handles
 
 	if(evt.currentTarget.dataset["type"] === "input") {
 		return;
@@ -196,7 +183,7 @@ function connector_onmouseup(evt) {
 	if(app.conn_start === null) return
 
 	if(conn_start.dataset.id === conn_end.dataset.id) {
-		console.log('same id')
+		console.log('Connection not created, cannot conenct to self.')
 		app.conn_start = null
 		app.conn_line.remove()
 		app.conn_line = null
@@ -204,7 +191,7 @@ function connector_onmouseup(evt) {
 	}
 
 	if(conn_start.dataset.type === conn_end.dataset.type) {
-		console.log('same type')
+		console.log('Connection not created, same type.')
 		app.conn_start = null
 		app.conn_line.remove()
 		app.conn_line = null
@@ -227,11 +214,11 @@ function connector_onmouseup(evt) {
 		}
 	}
 
-	const name = evt.currentTarget.dataset['name']
+	const input_name = evt.currentTarget.dataset['name']
 
-	const curr_input = input_node.get_input_node(name)
+	const curr_input = input_node.get_input_connection(input_name)
 	if(curr_input !== null && curr_input.id === output_node.id) {
-		console.log('same connection')
+		console.log('Connection not created, connection already exists.')
 		app.conn_start = null
 		app.conn_line.remove()
 		app.conn_line = null
@@ -241,11 +228,11 @@ function connector_onmouseup(evt) {
 		console.error('re-connect')
 	}
 
-	output_node.set_output_node(app.conn_start.dataset["name"], input_node)
-	input_node.set_input_node(name, output_node)
-	// input_node.process()
+	const output_name = app.conn_start.dataset["name"]
+
+	output_node.set_output_node(output_name, input_node)
+	input_node.set_input_connection(input_name, output_node, output_name)
 	const line = new LeaderLine(conn_start, conn_end)
-	// app.lines.push(line)
 	app.connections.push({ output: output_node, input: input_node, line: line })
 	
 	app.conn_start = null
