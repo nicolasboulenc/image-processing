@@ -1,5 +1,11 @@
+/*
+to do: 
+- set is_stale on connections and disconnections
+- put callback back
+*/
+
+
 "use strict";
-// @ts-check
 
 class Node_Template {
 
@@ -8,11 +14,12 @@ class Node_Template {
 	constructor(options = {}) {
 
 		this.#id = ""					// id of the html element
-		this.callback = null			// called when?
 		this.elem = null				// the html element
+		this.callback = null			// call this back when something changed
 		this.input_connections = null	// map(name: String) list of { output_node: node_connected_to_this_input, output_name: output_name_of_that_node }
 		this.output_nodes = null		// map(name: String) list of nodes
 		this.outputs = { "default": null }
+		this.is_stale = false
 
 		if(typeof options.id !== "undefined") {
 			this.#id = options.id
@@ -77,6 +84,8 @@ class Node_Template {
 		else {
 			this.input_connections.set(input_name, { "output_node": output_node, "output_name": output_name })
 		}
+		this.is_stale = true
+		if(this.callback !== null) this.callback()
 	}
 
 
@@ -173,13 +182,16 @@ class Node_Template {
 	}
 
 
-	process_bwd() {
+	process_all() {
 		for(const [name, conn] of this.input_connections) {
 			if(conn !== null && conn.output_node !== null) {
-				conn.output_node.process_bwd()
+				conn.output_node.process_all()
 			}
 		}
-		this.process()
+		if(this.is_stale) {
+			this.process()
+			this.is_stale = false
+		}
 	}
 }
 
@@ -260,9 +272,8 @@ class Node_Image extends Node_Template {
 		this.outputs["output"] = ctx.getImageData(0, 0, image.width, image.height)
 		this.outputs["default"] = this.outputs["output"]
 
-		if(typeof this.callback === "function") {
-			this.callback(this)
-		}
+		this.is_stale = true
+		if(this.callback !== null) this.callback()
 	}
 }
 
@@ -324,11 +335,8 @@ class Node_Gray extends Node_Template {
 		evt.currentTarget.checked = true
 		this.current = evt.currentTarget.value
 
-		this.process()
-
-		if(typeof this.callback === "function") {
-			this.callback(this)
-		}
+		this.is_stale = true
+		if(this.callback !== null) this.callback()
 	}
 
 
@@ -409,7 +417,8 @@ class Node_Bayer_Matrix extends Node_Template {
 		this.build({title: "Bayer Matrix"})
 		this.build_params()
 
-		this.process()
+		this.is_stale = true
+		if(this.callback !== null) this.callback()
 	}
 
 	build_params() {
@@ -456,11 +465,8 @@ class Node_Bayer_Matrix extends Node_Template {
 		evt.currentTarget.checked = true
 		this.current = evt.currentTarget.value
 
-		this.process()
-
-		if(typeof this.callback === "function") {
-			this.callback(this)
-		}
+		this.is_stale = true
+		if(this.callback !== null) this.callback()
 	}
 
 
