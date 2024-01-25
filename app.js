@@ -39,36 +39,31 @@ function button_onclick(evt) {
 	let node = null
 	let op = evt.currentTarget.dataset['op']
 
+	const options = { id: generate_id(), callback: render }
+
 	if(op === 'image') {
-		const options = { id: generate_id(), callback: render, params: ['images/viking.jpg', 'images/david.png', 'images/surma.png'] }
+		options.params = ['images/viking.jpg', 'images/david.png', 'images/surma.png']
 		node = new Node_Image(options)
 	}
 	else if(op === 'gray') {
-		const options = { id: generate_id(), callback: render }
 		node = new Node_Gray(options)
 	}
 	else if(op === 'threshold') {
-		const options = { id: generate_id(), callback: render }
 		node = new Node_Threshold(options)
 	}
 	else if(op === 'rgb-splitter') {
-		const options = { id: generate_id(), callback: render }
 		node = new Node_RGB_Splitter(options)
 	}
 	else if(op === 'rgb-merger') {
-		const options = { id: generate_id(), callback: render }
 		node = new Node_RGB_Merger(options)
 	}
 	else if(op === 'bayer') {
-		const options = { id: generate_id(), callback: render }
 		node = new Node_Bayer_Matrix(options)
 	}
 	else if(op === 'dither-threshold') {
-		const options = { id: generate_id(), callback: render }
 		node = new Node_Dither_Threshold(options)
 	}
 	else if(op === 'output') {
-		const options = { id: generate_id(), callback: render }
 		node = new Node_Output(options)
 	}
 
@@ -78,11 +73,16 @@ function button_onclick(evt) {
 	node.elem.addEventListener('mouseout', node_onmouseout)		// to de-select component
 
 	// to connect components
-	const elems = node.elem.querySelectorAll('.connections .connector')
+	let elems = node.elem.querySelectorAll('.connections > .output > .connector')
 	for(const elem of elems) {
 		elem.addEventListener('mousedown', connector_onmousedown)	
+	}
+
+	elems = node.elem.querySelectorAll('.connections > .input > .connector')
+	for(const elem of elems) {
 		elem.addEventListener('mouseup', connector_onmouseup)
 	}
+
 
 	// create draggable
 	const draggable = new PlainDraggable(node.elem)
@@ -164,10 +164,6 @@ function connector_onmousedown(evt) {
 	// to stop component dragging from connector
 	// evt.stopImmediatePropagation()
 	// this is not needed since using PlainDraggable handles
-
-	if(evt.currentTarget.dataset["type"] === "input") {
-		return;
-	}
 
 	app.conn_start = evt.currentTarget
 	const attach = LeaderLine.pointAnchor(document.body, {x: evt.clientX, y: evt.clientY})
@@ -264,6 +260,7 @@ function window_onmousemove(evt) {
 
 
 function window_onkeypressed(evt) {
+
 	if(evt.code === "KeyD") {
 		console.log(`Remove: current ${app.selected_node.id}`)
 		app.selected_node.disconnect()
