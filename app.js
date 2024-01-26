@@ -27,12 +27,23 @@ function init() {
 	for(const elem of elems) {
 		elem.addEventListener('click', button_onclick)
 	}
-	
+
+	const resizeObserver = new ResizeObserver(ui_onresize)
+	resizeObserver.observe(document.querySelector(".ui"));
+
 	document.addEventListener('keypress', window_onkeypressed)
 	window.addEventListener('mouseup', window_onmouseup)
 	window.addEventListener('mousemove', window_onmousemove)
 }
 
+
+function ui_onresize(entries) {
+	const bbox = entries[0].contentRect
+	console.log(bbox)
+	for(const comp of app.components) {
+		comp.draggable.containment = entries[0]
+	}
+}
 
 function button_onclick(evt) {
 
@@ -101,6 +112,7 @@ function render() {
 
 	if(app.rendering_node === null) return
 
+	app.rendering_node.is_stale = true
 	app.rendering_node.process_all()
 
 	const buffer = app.rendering_node.get_output()

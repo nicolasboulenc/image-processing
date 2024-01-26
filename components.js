@@ -119,7 +119,7 @@ class Node_Template {
 
 		for(const [name, conn] of this.input_connections) {
 			if(conn.output_node !== null && conn.output_node.id === node_id) {
-				this.input_connections.set(name, { "output_node": null, "output_name": "" })
+				this.input_connections.set(name, null)
 			}
 		}
 
@@ -183,15 +183,22 @@ class Node_Template {
 
 
 	process_all() {
+		
+		let was_stale = false
+
 		for(const [name, conn] of this.input_connections) {
 			if(conn !== null && conn.output_node !== null) {
-				conn.output_node.process_all()
+				was_stale = conn.output_node.process_all()
 			}
 		}
-		if(this.is_stale) {
+
+		if(this.is_stale || was_stale) {
 			this.process()
 			this.is_stale = false
+			was_stale = true
 		}
+
+		return was_stale
 	}
 }
 
@@ -589,35 +596,77 @@ class Node_Threshold extends Node_Template {
 		options.connections = [{type: "input", name: "input"}, {type: "output", name: "output"}]
 		super(options)
 
+		this.level = 128
+
 		this.build({title: "Threshold"})
+		this.build_params()
+	}
+
+
+	build_params() {
+
+		const prms = this.elem.querySelector(".params")
+
+		const div = document.createElement("div")
+		const input = document.createElement("input")
+		input.setAttribute("type", "range")
+		const id = `id-${Math.floor(Math.random() * 1000000)}`
+		input.setAttribute("id", id)
+		input.setAttribute("min", 0)
+		input.setAttribute("max", 255)
+		input.setAttribute("value", this.threshold)
+		input.addEventListener("change", this.param_onchange.bind(this))
+		div.appendChild(input)
+
+		prms.appendChild(div)
+	}
+
+	param_onchange(evt) {
+
+		this.level = evt.currentTarget.value
+		this.is_stale = true
+		if(this.callback !== null) this.callback()
 	}
 
 	process() {
 
-		if(this.get_input_connection("input") === null) return
-		if(this.get_input_connection("input").output === null) return
+		const conn = this.get_input_connection("input")
+		if(conn === null) return
 
-		this.outputs["output"] = this.threshold(this.get_input_connection("input").get_output(this))
+		const input = this.get_input("input")
+
+		this.outputs["output"] = this.threshold(input)
 		this.outputs["default"] = this.outputs["output"]
 	}
 
 	threshold(src) {
 
-		const threshold = 128
+		const threshold = this.level
 
 		let dst = new ImageData(src.width, src.height)
 		for (let i=0; i<src.data.length; i+=4) {
 	
 			if(src.data[i + 0] < threshold) {
 				dst.data[i + 0] = 0
-				dst.data[i + 1] = 0
-				dst.data[i + 2] = 0
 			}
 			else {
 				dst.data[i + 0] = 255
+			}
+
+			if(src.data[i + 1] < threshold) {
+				dst.data[i + 1] = 0
+			}
+			else {
 				dst.data[i + 1] = 255
+			}
+
+			if(src.data[i + 2] < threshold) {
+				dst.data[i + 2] = 0
+			}
+			else {
 				dst.data[i + 2] = 255
 			}
+
 			dst.data[i + 3] = 255
 		}
 		return dst
@@ -694,7 +743,8 @@ class Node_RGB_Merger extends Node_Template {
 		const r = this.get_input("R")
 		const g = this.get_input("G")
 		const b = this.get_input("B")
-		this.merge(r, g, b)
+		this.outputs["output"] = this.merge(r, g, b)
+		this.outputs["default"] = this.outputs["output"]
 	}
 
 	merge(r, g, b) {
@@ -721,8 +771,7 @@ class Node_RGB_Merger extends Node_Template {
 			dst.data[i + 3] = 255
 		}
 
-		this.outputs["output"] = dst
-		this.outputs["default"] = dst
+		return dst
 	}
 }
 
