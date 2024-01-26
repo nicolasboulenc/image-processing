@@ -11,7 +11,7 @@
     border: var(--component-border) solid #E0E1DD;
     color: #E0E1DD;
     user-select: none;
-    width: 125px;
+    width: 150px;
 }
 
 .component.selected {
@@ -38,7 +38,8 @@
 
 .component > .connections {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    justify-content: space-between;
     padding-bottom: .25rem;
 }
 

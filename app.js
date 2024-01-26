@@ -28,8 +28,8 @@ function init() {
 		elem.addEventListener('click', button_onclick)
 	}
 
-	const resizeObserver = new ResizeObserver(ui_onresize)
-	resizeObserver.observe(document.querySelector(".ui"));
+	// const resizeObserver = new ResizeObserver(ui_onresize)
+	// resizeObserver.observe(document.querySelector(".ui"));
 
 	document.addEventListener('keypress', window_onkeypressed)
 	window.addEventListener('mouseup', window_onmouseup)
@@ -37,13 +37,14 @@ function init() {
 }
 
 
-function ui_onresize(entries) {
-	const bbox = entries[0].contentRect
-	console.log(bbox)
-	for(const comp of app.components) {
-		comp.draggable.containment = entries[0]
-	}
-}
+// function ui_onresize(entries) {
+// 	const bbox = entries[0].contentRect
+// 	console.log(bbox)
+// 	for(const comp of app.components) {
+// 		comp.draggable.containment = entries[0]
+// 	}
+// }
+
 
 function button_onclick(evt) {
 
@@ -53,14 +54,26 @@ function button_onclick(evt) {
 	const options = { id: generate_id(), callback: render }
 
 	if(op === 'image') {
-		options.params = ['images/viking.jpg', 'images/david.png', 'images/surma.png']
+		options.params = ['img/viking.jpg', 'img/david.png', 'img/surma.png']
 		node = new Node_Image(options)
+	}
+	else if(op === 'brightness') {
+		node = new Node_Brightness(options)
+	}
+	else if(op === 'contrast') {
+		node = new Node_Contrast(options)
+	}
+	else if(op === 'inverted') {
+		node = new Node_Inverted(options)
 	}
 	else if(op === 'gray') {
 		node = new Node_Gray(options)
 	}
 	else if(op === 'threshold') {
 		node = new Node_Threshold(options)
+	}
+	else if(op === 'rgb-adjuster') {
+		node = new Node_RGB_Adjuster(options)
 	}
 	else if(op === 'rgb-splitter') {
 		node = new Node_RGB_Splitter(options)
@@ -84,12 +97,12 @@ function button_onclick(evt) {
 	node.elem.addEventListener('mouseout', node_onmouseout)		// to de-select component
 
 	// to connect components
-	let elems = node.elem.querySelectorAll('.connections > .output > .connector')
+	let elems = node.elem.querySelectorAll('.connections .output > .connector')
 	for(const elem of elems) {
 		elem.addEventListener('mousedown', connector_onmousedown)	
 	}
 
-	elems = node.elem.querySelectorAll('.connections > .input > .connector')
+	elems = node.elem.querySelectorAll('.connections .input > .connector')
 	for(const elem of elems) {
 		elem.addEventListener('mouseup', connector_onmouseup)
 	}

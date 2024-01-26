@@ -159,19 +159,19 @@ class Node_Template {
 		const ttl = `<div class="title">${title}</div>`
 
 		
-		let conns = `<div class="connections">`
+		let conns = `<div class="connections"><div class="inputs">`
 
 		const inputs = this.input_connections.keys()
 		for(const input of inputs) {
 			conns += `<div class="input"><div class="connector" data-id="${this.#id}" data-type="input" data-name="${input}"></div><div class="label">${input}</div></div>`
 		}
-
+		conns += `</div><div class="outputs">`
 		const outputs = this.output_nodes.keys()
 		for(const output of outputs) {
 			conns += `<div class="output"><div class="label">${output}</div><div class="connector" data-id="${this.#id}" data-type="output" data-name="${output}"></div></div>`
 		}
 
-		conns += "</div>"
+		conns += "</div></div>"
 
 		const params = `<div class="params"></div>`
 
@@ -209,7 +209,11 @@ class Node_Image extends Node_Template {
 		options.connections = [{type: "output", name: "output"}]
 		super(options)
 		
+		this.image = document.createElement("img")
+		this.canvas = new OffscreenCanvas(1, 1)
+		this.ctx = this.canvas.getContext("2d")
 		this.current = ""
+
 		this.build({title: "Image"})
 		if(typeof options.params !== "undefined") {
 			this.build_params(options.params)
@@ -265,22 +269,22 @@ class Node_Image extends Node_Template {
 
 	image_load(url) {
 
-		const image = document.createElement("img")
-		image.addEventListener("load", this.image_onload.bind(this))
-		image.src = url
+		this.image.src = url
+		this.image.addEventListener("load", (evt) => {
+			this.is_stale = true
+			if(this.callback !== null) this.callback()
+		})
 	}
 
-	image_onload(evt) {
+	process() {
 
-		const image = evt.target
-		const canvas = new OffscreenCanvas(image.width, image.height)
-		const ctx = canvas.getContext("2d")
-		ctx.drawImage(image, 0,  0)
-		this.outputs["output"] = ctx.getImageData(0, 0, image.width, image.height)
+		if(this.image.width === 0) return
+
+		this.canvas.width = this.image.width
+		this.canvas.height = this.image.height
+		this.ctx.drawImage(this.image, 0,  0)
+		this.outputs["output"] = this.ctx.getImageData(0, 0, this.image.width, this.image.height)
 		this.outputs["default"] = this.outputs["output"]
-
-		this.is_stale = true
-		if(this.callback !== null) this.callback()
 	}
 }
 
@@ -596,7 +600,7 @@ class Node_Threshold extends Node_Template {
 		options.connections = [{type: "input", name: "input"}, {type: "output", name: "output"}]
 		super(options)
 
-		this.level = 128
+		this.current = 128
 
 		this.build({title: "Threshold"})
 		this.build_params()
@@ -614,7 +618,7 @@ class Node_Threshold extends Node_Template {
 		input.setAttribute("id", id)
 		input.setAttribute("min", 0)
 		input.setAttribute("max", 255)
-		input.setAttribute("value", this.threshold)
+		input.setAttribute("value", this.current)
 		input.addEventListener("change", this.param_onchange.bind(this))
 		div.appendChild(input)
 
@@ -623,7 +627,7 @@ class Node_Threshold extends Node_Template {
 
 	param_onchange(evt) {
 
-		this.level = evt.currentTarget.value
+		this.current = parseInt(evt.currentTarget.value)
 		this.is_stale = true
 		if(this.callback !== null) this.callback()
 	}
@@ -641,7 +645,7 @@ class Node_Threshold extends Node_Template {
 
 	threshold(src) {
 
-		const threshold = this.level
+		const threshold = this.current
 
 		let dst = new ImageData(src.width, src.height)
 		for (let i=0; i<src.data.length; i+=4) {
@@ -667,6 +671,185 @@ class Node_Threshold extends Node_Template {
 				dst.data[i + 2] = 255
 			}
 
+			dst.data[i + 3] = 255
+		}
+		return dst
+	}
+}
+
+
+class Node_Brightness extends Node_Template {
+
+	constructor(options = {}) {
+		options.connections = [{type: "input", name: "input"}, {type: "output", name: "output"}]
+		super(options)
+
+		this.current = 0
+
+		this.build({title: "Brightness"})
+		this.build_params()
+	}
+
+
+	build_params() {
+
+		const prms = this.elem.querySelector(".params")
+
+		const div = document.createElement("div")
+		const input = document.createElement("input")
+		input.setAttribute("type", "range")
+		const id = `id-${Math.floor(Math.random() * 1000000)}`
+		input.setAttribute("id", id)
+		input.setAttribute("min", -128)
+		input.setAttribute("max", 128)
+		input.setAttribute("value", this.current)
+		input.addEventListener("change", this.param_onchange.bind(this))
+		div.appendChild(input)
+
+		prms.appendChild(div)
+	}
+
+	param_onchange(evt) {
+
+		this.current = parseInt(evt.currentTarget.value)
+		this.is_stale = true
+		if(this.callback !== null) this.callback()
+	}
+
+	process() {
+
+		const conn = this.get_input_connection("input")
+		if(conn === null) return
+
+		const input = this.get_input("input")
+
+		this.outputs["output"] = this.brightness(input)
+		this.outputs["default"] = this.outputs["output"]
+	}
+
+	brightness(src) {
+
+		const offset = this.current
+		let dst = new ImageData(src.width, src.height)
+		for (let i=0; i<src.data.length; i+=4) {
+	
+			const r = src.data[i + 0] + offset
+			const g = src.data[i + 1] + offset
+			const b = src.data[i + 2] + offset
+
+			dst.data[i + 0] = (r < 256 ? r : 255)
+			dst.data[i + 1] = (g < 256 ? g : 255)
+			dst.data[i + 2] = (b < 256 ? b : 255)
+			dst.data[i + 3] = 255
+		}
+		return dst
+	}
+}
+
+
+class Node_Contrast extends Node_Template {
+
+	constructor(options = {}) {
+		options.connections = [{type: "input", name: "input"}, {type: "output", name: "output"}]
+		super(options)
+
+		this.current = 0
+
+		this.build({title: "Contrast"})
+		this.build_params()
+	}
+
+
+	build_params() {
+
+		const prms = this.elem.querySelector(".params")
+
+		const div = document.createElement("div")
+		const input = document.createElement("input")
+		input.setAttribute("type", "range")
+		const id = `id-${Math.floor(Math.random() * 1000000)}`
+		input.setAttribute("id", id)
+		input.setAttribute("min", -128)
+		input.setAttribute("max", 128)
+		input.setAttribute("value", this.current)
+		input.addEventListener("change", this.param_onchange.bind(this))
+		div.appendChild(input)
+
+		prms.appendChild(div)
+	}
+
+	param_onchange(evt) {
+
+		this.current = parseInt(evt.currentTarget.value)
+		this.is_stale = true
+		if(this.callback !== null) this.callback()
+	}
+
+	process() {
+
+		const conn = this.get_input_connection("input")
+		if(conn === null) return
+
+		const input = this.get_input("input")
+
+		this.outputs["output"] = this.contrast(input)
+		this.outputs["default"] = this.outputs["output"]
+	}
+
+	contrast(src) {
+		// https://www.dfstudios.co.uk/articles/programming/image-programming-algorithms/image-processing-algorithms-part-5-contrast-adjustment/
+		const offset = this.current
+		const factor = (259 * (offset + 255)) / (255 * (259 - offset))
+		let dst = new ImageData(src.width, src.height)
+		for (let i=0; i<src.data.length; i+=4) {
+
+			const r = factor * (src.data[i + 0] - 128) + 128
+			const g = factor * (src.data[i + 1] - 128) + 128
+			const b = factor * (src.data[i + 2] - 128) + 128
+
+			dst.data[i + 0] = (r < 256 ? r : 255)
+			dst.data[i + 1] = (g < 256 ? g : 255)
+			dst.data[i + 2] = (b < 256 ? b : 255)
+			dst.data[i + 3] = 255
+		}
+		return dst
+	}
+}
+
+
+class Node_Inverted extends Node_Template {
+
+	constructor(options = {}) {
+
+		options.connections = [{type: "input", name: "input"}, {type: "output", name: "output"}]
+		super(options)
+		
+		this.build({title: "Inverted"})
+	}
+
+	process() {
+
+		const conn = this.get_input_connection("input")
+		if(conn === null) return
+
+		const input = this.get_input("input")
+		this.outputs["output"] = this.invert(input)
+		this.outputs["default"] = this.outputs["output"]
+	}
+
+
+	invert(src) {
+
+		const dst = new ImageData(src.width, src.height)
+		for (let i=0; i<src.data.length; i+=4) {
+	
+			let r = 255 - src.data[i + 0]
+			let g = 255 - src.data[i + 1]
+			let b = 255 - src.data[i + 2]
+	
+			dst.data[i + 0] = r
+			dst.data[i + 1] = g
+			dst.data[i + 2] = b
 			dst.data[i + 3] = 255
 		}
 		return dst
@@ -774,6 +957,105 @@ class Node_RGB_Merger extends Node_Template {
 		return dst
 	}
 }
+
+
+class Node_RGB_Adjuster extends Node_Template {
+
+	constructor(options = {}) {
+		options.connections = [{type: "input", name: "input"}, {type: "output", name: "output"}]
+		super(options)
+
+		this.current_r = 0
+		this.current_g = 0
+		this.current_b = 0
+
+		this.build({title: "RGB Adjuster"})
+		this.build_params()
+	}
+
+
+	build_params() {
+
+		const prms = this.elem.querySelector(".params")
+
+		let div = document.createElement("div")
+		let input = document.createElement("input")
+		input.setAttribute("type", "range")
+		input.setAttribute("id", `${this.id}-r`)
+		input.setAttribute("min", -128)
+		input.setAttribute("max", 128)
+		input.setAttribute("value", this.offset_r)
+		input.addEventListener("change", this.param_onchange.bind(this))
+		div.appendChild(input)
+		prms.appendChild(div)
+
+		div = document.createElement("div")
+		input = document.createElement("input")
+		input.setAttribute("type", "range")
+		input.setAttribute("id", `${this.id}-g`)
+		input.setAttribute("min", -128)
+		input.setAttribute("max", 128)
+		input.setAttribute("value", this.offset_g)
+		input.addEventListener("change", this.param_onchange.bind(this))
+		div.appendChild(input)
+		prms.appendChild(div)
+
+		div = document.createElement("div")
+		input = document.createElement("input")
+		input.setAttribute("type", "range")
+		input.setAttribute("id", `${this.id}-b`)
+		input.setAttribute("min", -128)
+		input.setAttribute("max", 128)
+		input.setAttribute("value", this.offset_b)
+		input.addEventListener("change", this.param_onchange.bind(this))
+		div.appendChild(input)
+		prms.appendChild(div)
+	}
+
+	param_onchange(evt) {
+
+		if(evt.currentTarget.id === `${this.id}-r`) {
+			this.current_r = parseInt(evt.currentTarget.value)
+		}
+		else if(evt.currentTarget.id === `${this.id}-g`) {
+			this.current_g = parseInt(evt.currentTarget.value)
+		}
+		else if(evt.currentTarget.id === `${this.id}-b`) {
+			this.current_b = parseInt(evt.currentTarget.value)
+		}
+	
+		this.is_stale = true
+		if(this.callback !== null) this.callback()
+	}
+
+	process() {
+
+		const conn = this.get_input_connection("input")
+		if(conn === null) return
+
+		const input = this.get_input("input")
+
+		this.outputs["output"] = this.adjust(input)
+		this.outputs["default"] = this.outputs["output"]
+	}
+
+	adjust(src) {
+
+		let dst = new ImageData(src.width, src.height)
+		for (let i=0; i<src.data.length; i+=4) {
+
+			const r = src.data[i + 0] + this.current_r
+			const g = src.data[i + 1] + this.current_g
+			const b = src.data[i + 2] + this.current_b
+			dst.data[i + 0] = (r < 256 ? r : 255)
+			dst.data[i + 1] = (g < 256 ? g : 255)
+			dst.data[i + 2] = (b < 256 ? b : 255)
+			dst.data[i + 3] = 255
+		}
+		return dst
+	}
+}
+
 
 
 class Node_Output extends Node_Template {
