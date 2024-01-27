@@ -678,6 +678,90 @@ class Node_Threshold extends Node_Template {
 }
 
 
+class Node_Threshold2 extends Node_Template {
+
+	constructor(options = {}) {
+		options.connections = [{type: "input", name: "input"}, {type: "output", name: "output"}]
+		super(options)
+
+		this.current = 128
+
+		this.build({title: "Threshold2"})
+		this.build_params()
+	}
+
+
+	build_params() {
+
+		const prms = this.elem.querySelector(".params")
+
+		const div = document.createElement("div")
+		const input = document.createElement("input")
+		input.setAttribute("type", "range")
+		const id = `id-${Math.floor(Math.random() * 1000000)}`
+		input.setAttribute("id", id)
+		input.setAttribute("min", 0)
+		input.setAttribute("max", 255)
+		input.setAttribute("value", this.current)
+		input.addEventListener("change", this.param_onchange.bind(this))
+		div.appendChild(input)
+
+		prms.appendChild(div)
+	}
+
+	param_onchange(evt) {
+
+		this.current = parseInt(evt.currentTarget.value)
+		this.is_stale = true
+		if(this.callback !== null) this.callback()
+	}
+
+	process() {
+
+		const conn = this.get_input_connection("input")
+		if(conn === null) return
+
+		const input = this.get_input("input")
+
+		this.outputs["output"] = this.threshold(input)
+		this.outputs["default"] = this.outputs["output"]
+	}
+
+	threshold(src) {
+
+		const threshold = this.current
+
+		let dst = new ImageData(src.width, src.height)
+		for (let i=0; i<src.data.length; i+=4) {
+	
+			if(src.data[i + 0] < threshold) {
+				dst.data[i + 0] = 0
+			}
+			else {
+				dst.data[i + 0] = src.data[i + 0]
+			}
+
+			if(src.data[i + 1] < threshold) {
+				dst.data[i + 1] = 0
+			}
+			else {
+				dst.data[i + 1] = src.data[i + 1]
+			}
+
+			if(src.data[i + 2] < threshold) {
+				dst.data[i + 2] = 0
+			}
+			else {
+				dst.data[i + 2] = src.data[i + 2]
+			}
+
+			dst.data[i + 3] = 255
+		}
+		return dst
+	}
+}
+
+
 class Node_Brightness extends Node_Template {
 
 	constructor(options = {}) {

@@ -18,19 +18,36 @@
 		circle {
 			fill: white;
 		}
+		.white {
+			fill: white;
+		}
+
+		.node > rect {
+		}
+
+		.node .title {
+			font: 20px sans;
+			background-color: black;
+		}
+
 	</style>
 </head>
 <body>
 <svg viewBox="0 0 500 500" width="500" height="500">
-	<title>A gradient</title>
+
 	<rect x="100" y="100" width="100" height="100" class="draggable" />
-	<!-- <g class="draggable">
-		<rect x="150" y="150" width="70" height="70" />
-	</g> -->
-	<g class="draggable">
-		<circle cx="300" cy="200" r="50" />
+
+	<g class="draggable node">
+		<rect x="300" y="200" width="150" height="70" class="handle" />
+		<text x="300" y="220" class="handle title">RGB Splitter</text>
+		<rect x="300" y="220" width="150" height="70" class="white" />
 	</g>
-	<path d="M 10 80 Q 52.5 10, 95 80 T 180 80" stroke="black" fill="transparent"/>
+
+	<g class="draggable">
+		<circle cx="300" cy="300" r="70" class="handle"/>
+	</g>
+
+
 </svg>
 <script>
 
@@ -38,17 +55,33 @@
 	document.addEventListener("mouseup", draggable_mouseup)
 	document.addEventListener("mousemove", draggable_mousemove)
 
+
+	// make_draggable(document.getElementById("r1"))
+	// make_draggable(document.getElementById("g1"), document.getElementById("r2"))
+
+
 	function draggable_mousedown(evt) {
 
-		if(evt.target.classList.contains("draggable")) {
-			
-			const draggable = evt.target
-			const bbox = draggable.getBoundingClientRect()
+		let draggable = null
+		if(evt.target.classList.contains("handle")) {
+			draggable = evt.target.parentElement
+			while(draggable !== null && draggable.classList.contains("draggable") !== true) {
+				draggable = draggable.parentElement
+			}
+		}
+		else if(evt.target.classList.contains("draggable")) {
+			draggable = evt.target
+		}
 
-			offset_x = bbox.x - evt.clientX
-			offset_y = bbox.y - evt.clientY
+		if(draggable !== null) {
+			const cbox = draggable.getBoundingClientRect()
 
-			const state = { is_dragging: true, offset: {x: offset_x, y: offset_y} }
+			offset_x = cbox.x - evt.clientX
+			offset_y = cbox.y - evt.clientY
+
+			const sbox = draggable.getBBox()
+
+			const state = { is_dragging: true, origin: {x: sbox.x, y: sbox.y}, offset: {x: offset_x, y: offset_y} }
 			draggable.dataset["state"] = JSON.stringify(state)
 
 			if(draggable.transform.baseVal.length === 0) {
@@ -58,38 +91,70 @@
 			// svg equivalent to z-index
 			document.querySelector("svg").appendChild(draggable)
 		}
+
 	}
+
 
 	function draggable_mouseup(evt) {
 
-		if(evt.target.classList.contains("draggable")) {
-			const draggable = evt.target
+		let draggable = null
+		if(evt.target.classList.contains("handle")) {
+			draggable = evt.target.parentElement
+			while(draggable !== null && draggable.classList.contains("draggable") !== true) {
+				draggable = draggable.parentElement
+			}
+		}
+		else if(evt.target.classList.contains("draggable")) {
+			draggable = evt.target
+		}
+
+		if(draggable !== null) {
 			delete draggable.dataset["state"]
 		}
 	}
 
+
 	function draggable_mousemove(evt) {
 
-		if(evt.target.classList.contains("draggable")) {
+		let draggable = null
+		if(evt.target.classList.contains("handle")) {
+			draggable = evt.target.parentElement
+			while(draggable !== null && draggable.classList.contains("draggable") !== true) {
+				draggable = draggable.parentElement
+			}
+		}
+		else if(evt.target.classList.contains("draggable")) {
+			draggable = evt.target
+		}
 
-			const draggable = evt.target
+		if(draggable !== null) {
+
 			const data = draggable.dataset.state
 			if(typeof data === "undefined") return
 
 			const state = JSON.parse(data)
-			const pbox = evt.target.parentElement.getBoundingClientRect()
-			const x = evt.clientX - pbox.x + state.offset.x - parseInt(draggable.getAttribute("x"))
-			const y = evt.clientY - pbox.y + state.offset.y - parseInt(draggable.getAttribute("y"))
+			const pbox = evt.target.ownerSVGElement.getBoundingClientRect()
+			const x = evt.clientX - pbox.x + state.offset.x - state.origin.x
+			const y = evt.clientY - pbox.y + state.offset.y - state.origin.y
 
 			draggable.transform.baseVal[0].setTranslate(x, y)
-		}				
+		}
 	}
 
-	// function make_draggable(elem) {
 
-	// 	let x = 0
-	// 	if(typeof elem.x)
-	// 	elem.dataset["draggable-init"] = 
+	// function make_draggable(elem, handle=null) {
+
+	// 	if(handle === null) {
+	// 		elem.classList.add("draggable")
+	// 	}
+	// 	else {
+	// 		handle.classList.add("draggable")
+	// 	}
+
+	// 	// to fix: convert view box to client etc
+	// 	const bbox = elem.getBBox()
+	// 	const state = { is_dragging: false, elem_id: elem.id, origin: {x: bbox.x, y: bbox.y}, offset: {x: 0, y: 0} }
+	// 	handle.dataset["state"] = JSON.stringify(state)
 	// }
 
 

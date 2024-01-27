@@ -70,7 +70,7 @@ function button_onclick(evt) {
 		node = new Node_Gray(options)
 	}
 	else if(op === 'threshold') {
-		node = new Node_Threshold(options)
+		node = new Node_Threshold2(options)
 	}
 	else if(op === 'rgb-adjuster') {
 		node = new Node_RGB_Adjuster(options)
