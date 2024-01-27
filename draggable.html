@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+	<meta charset="utf-8" />
+	<title>SVG Demo</title>
+	<meta name="viewport" content="width=device-width" />
+	<style>
+		body {
+			background-color: blue;
+		}
+		svg {
+			background-color: darkgray;
+			margin-top: 100px;
+		}
+		rect {
+			fill: black;
+		}
+		circle {
+			fill: white;
+		}
+	</style>
+</head>
+<body>
+<svg viewBox="0 0 500 500" width="500" height="500">
+	<title>A gradient</title>
+	<rect x="100" y="100" width="100" height="100" class="draggable" />
+	<!-- <g class="draggable">
+		<rect x="150" y="150" width="70" height="70" />
+	</g> -->
+	<g class="draggable">
+		<circle cx="300" cy="200" r="50" />
+	</g>
+	<path d="M 10 80 Q 52.5 10, 95 80 T 180 80" stroke="black" fill="transparent"/>
+</svg>
+<script>
+
+	document.addEventListener("mousedown", draggable_mousedown)
+	document.addEventListener("mouseup", draggable_mouseup)
+	document.addEventListener("mousemove", draggable_mousemove)
+
+	function draggable_mousedown(evt) {
+
+		if(evt.target.classList.contains("draggable")) {
+			
+			const draggable = evt.target
+			const bbox = draggable.getBoundingClientRect()
+
+			offset_x = bbox.x - evt.clientX
+			offset_y = bbox.y - evt.clientY
+
+			const state = { is_dragging: true, offset: {x: offset_x, y: offset_y} }
+			draggable.dataset["state"] = JSON.stringify(state)
+
+			if(draggable.transform.baseVal.length === 0) {
+				const transform = document.querySelector("svg").createSVGTransform()
+				draggable.transform.baseVal.appendItem(transform)
+			}
+			// svg equivalent to z-index
+			document.querySelector("svg").appendChild(draggable)
+		}
+	}
+
+	function draggable_mouseup(evt) {
+
+		if(evt.target.classList.contains("draggable")) {
+			const draggable = evt.target
+			delete draggable.dataset["state"]
+		}
+	}
+
+	function draggable_mousemove(evt) {
+
+		if(evt.target.classList.contains("draggable")) {
+
+			const draggable = evt.target
+			const data = draggable.dataset.state
+			if(typeof data === "undefined") return
+
+			const state = JSON.parse(data)
+			const pbox = evt.target.parentElement.getBoundingClientRect()
+			const x = evt.clientX - pbox.x + state.offset.x - parseInt(draggable.getAttribute("x"))
+			const y = evt.clientY - pbox.y + state.offset.y - parseInt(draggable.getAttribute("y"))
+
+			draggable.transform.baseVal[0].setTranslate(x, y)
+		}				
+	}
+
+	// function make_draggable(elem) {
+
+	// 	let x = 0
+	// 	if(typeof elem.x)
+	// 	elem.dataset["draggable-init"] = 
+	// }
+
+
+</script>
+</body>
+</html>
