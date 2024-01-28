@@ -33,7 +33,7 @@
 	</style>
 </head>
 <body>
-<svg viewBox="0 0 500 500" width="500" height="500">
+<svg viewBox="0 0 500 500" width="500" height="500" xmlns="http://www.w3.org/2000/svg">
 
 	<rect x="100" y="100" width="100" height="100" class="draggable" />
 
@@ -55,6 +55,7 @@
 	document.addEventListener("mouseup", draggable_mouseup)
 	document.addEventListener("mousemove", draggable_mousemove)
 
+	create_node()
 
 	// make_draggable(document.getElementById("r1"))
 	// make_draggable(document.getElementById("g1"), document.getElementById("r2"))
@@ -140,6 +141,30 @@
 			draggable.transform.baseVal[0].setTranslate(x, y)
 		}
 	}
+
+
+	function create_node(x=350, y=200) {
+		
+		const NODE_WIDTH = 150
+		const svg = document.querySelector("svg")
+
+		const text = `
+			<rect x="0" y="0" width="${NODE_WIDTH}" height="70" class="handle" />
+			<text x="0" y="20" width="${NODE_WIDTH}" class="handle title">RGB Splitter</text>
+			<rect x="0" y="20" width="${NODE_WIDTH}" height="70" class="white" />
+			<input type="checkbox" />`
+
+		
+		const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+		g.classList.add("draggable")
+		g.innerHTML = text
+
+		const transform = svg.createSVGTransform()
+		transform.setTranslate(x, y)
+		g.transform.baseVal.appendItem(transform)
+		svg.appendChild(g)
+	}
+
 
 
 	// function make_draggable(elem, handle=null) {
