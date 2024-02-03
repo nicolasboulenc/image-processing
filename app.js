@@ -254,6 +254,7 @@ function connector_onmouseup(evt) {
 	output_node.set_output_node(output_name, input_node)
 	input_node.set_input_connection(input_name, output_node, output_name)
 	const line = new LeaderLine(conn_start, conn_end)
+
 	app.connections.push({ output: output_node, input: input_node, line: line })
 	
 	app.conn_start = null
@@ -263,6 +264,10 @@ function connector_onmouseup(evt) {
 	render()
 }
 
+
+function test(evt) {
+	console.log("etes")
+}
 
 function window_onmouseup(evt) {
 
@@ -280,6 +285,12 @@ function window_onmousemove(evt) {
 		const attach = LeaderLine.pointAnchor(document.body, {x: evt.clientX, y: evt.clientY})
 		app.conn_line.end = attach
 		app.conn_line.position()
+	}
+	else {
+		const elems = document.elementsFromPoint(evt.clientX, evt.clientY)
+		for(const elem of elems) {
+			console.log(elem)
+		}
 	}
 }
 

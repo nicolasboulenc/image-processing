@@ -9,25 +9,24 @@
 			background-color: blue;
 		}
 		svg {
-			background-color: darkgray;
+			background-color: #222;
 			margin-top: 100px;
 		}
-		rect {
-			fill: black;
-		}
+
 		circle {
 			fill: white;
 		}
-		.white {
-			fill: white;
+		.node-contents {
+			fill: #aaa;
 		}
 
-		.node > rect {
+		.handle {
+			fill: lightgoldenrodyellow;
 		}
 
-		.node .title {
-			font: 20px sans;
-			background-color: black;
+		.node text {
+			font: 19px sans-serif;
+			fill: black;
 		}
 
 	</style>
@@ -35,35 +34,39 @@
 <body>
 <svg viewBox="0 0 500 500" width="500" height="500" xmlns="http://www.w3.org/2000/svg">
 
-	<rect x="100" y="100" width="100" height="100" class="draggable" />
+	<rect x="100" y="100" width="100" height="100" class="draggable anchor" />
 
 	<g class="draggable node">
 		<rect x="300" y="200" width="150" height="70" class="handle" />
-		<text x="300" y="220" class="handle title">RGB Splitter</text>
-		<rect x="300" y="220" width="150" height="70" class="white" />
+		<text x="302" y="217" class="handle">Node 1</text>
+		<rect x="300" y="220" width="150" height="70" class="node-contents" />
 	</g>
 
 	<g class="draggable">
-		<circle cx="300" cy="300" r="70" class="handle"/>
+		<circle cx="300" cy="300" r="70" class="anchor"/>
 	</g>
-
 
 </svg>
 <script>
+
+	let draggable = null
 
 	document.addEventListener("mousedown", draggable_mousedown)
 	document.addEventListener("mouseup", draggable_mouseup)
 	document.addEventListener("mousemove", draggable_mousemove)
 
+	document.addEventListener("mousedown", linkable_mousedown)
+	document.addEventListener("mouseup", linkable_mouseup)
+	document.addEventListener("mousemove", linkable_mousemove)
+
 	create_node()
 
-	// make_draggable(document.getElementById("r1"))
-	// make_draggable(document.getElementById("g1"), document.getElementById("r2"))
 
 
 	function draggable_mousedown(evt) {
 
-		let draggable = null
+		console.log("linkable_mousedown")
+
 		if(evt.target.classList.contains("handle")) {
 			draggable = evt.target.parentElement
 			while(draggable !== null && draggable.classList.contains("draggable") !== true) {
@@ -92,41 +95,19 @@
 			// svg equivalent to z-index
 			document.querySelector("svg").appendChild(draggable)
 		}
-
 	}
 
 
 	function draggable_mouseup(evt) {
 
-		let draggable = null
-		if(evt.target.classList.contains("handle")) {
-			draggable = evt.target.parentElement
-			while(draggable !== null && draggable.classList.contains("draggable") !== true) {
-				draggable = draggable.parentElement
-			}
-		}
-		else if(evt.target.classList.contains("draggable")) {
-			draggable = evt.target
-		}
-
 		if(draggable !== null) {
 			delete draggable.dataset["state"]
+			draggable = null
 		}
 	}
 
 
 	function draggable_mousemove(evt) {
-
-		let draggable = null
-		if(evt.target.classList.contains("handle")) {
-			draggable = evt.target.parentElement
-			while(draggable !== null && draggable.classList.contains("draggable") !== true) {
-				draggable = draggable.parentElement
-			}
-		}
-		else if(evt.target.classList.contains("draggable")) {
-			draggable = evt.target
-		}
 
 		if(draggable !== null) {
 
@@ -134,7 +115,7 @@
 			if(typeof data === "undefined") return
 
 			const state = JSON.parse(data)
-			const pbox = evt.target.ownerSVGElement.getBoundingClientRect()
+			const pbox = draggable.ownerSVGElement.getBoundingClientRect()
 			const x = evt.clientX - pbox.x + state.offset.x - state.origin.x
 			const y = evt.clientY - pbox.y + state.offset.y - state.origin.y
 
@@ -143,20 +124,37 @@
 	}
 
 
-	function create_node(x=350, y=200) {
+	function linkable_mousedown(evt) {
+		if(evt.target.classList.contains("anchor")) {
+			console.log("linkable_mousedown")
+		}
+		return true
+	}
+
+
+	function linkable_mouseup(evt) {
+		
+	}
+
+
+	function linkable_mousemove(evt) {
+		
+	}
+
+
+	function create_node(x=50, y=250) {
 		
 		const NODE_WIDTH = 150
 		const svg = document.querySelector("svg")
 
 		const text = `
 			<rect x="0" y="0" width="${NODE_WIDTH}" height="70" class="handle" />
-			<text x="0" y="20" width="${NODE_WIDTH}" class="handle title">RGB Splitter</text>
-			<rect x="0" y="20" width="${NODE_WIDTH}" height="70" class="white" />
-			<input type="checkbox" />`
+			<text x="2" y="17" width="${NODE_WIDTH}" class="handle title">Node 2</text>
+			<rect x="0" y="20" width="${NODE_WIDTH}" height="70" class="node-contents" />`
 
-		
 		const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
 		g.classList.add("draggable")
+		g.classList.add("node")
 		g.innerHTML = text
 
 		const transform = svg.createSVGTransform()
@@ -167,20 +165,7 @@
 
 
 
-	// function make_draggable(elem, handle=null) {
 
-	// 	if(handle === null) {
-	// 		elem.classList.add("draggable")
-	// 	}
-	// 	else {
-	// 		handle.classList.add("draggable")
-	// 	}
-
-	// 	// to fix: convert view box to client etc
-	// 	const bbox = elem.getBBox()
-	// 	const state = { is_dragging: false, elem_id: elem.id, origin: {x: bbox.x, y: bbox.y}, offset: {x: 0, y: 0} }
-	// 	handle.dataset["state"] = JSON.stringify(state)
-	// }
 
 
 </script>

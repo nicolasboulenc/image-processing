@@ -250,7 +250,7 @@ const draggable2 = new PlainDraggable(document.querySelector('#bayer'));
 const draggable3 = new PlainDraggable(document.querySelector('#dither'));
 const draggable4 = new PlainDraggable(document.querySelector('#output'));
 
-const line0 = new LeaderLine( document.querySelector('#image .output .connector'), document.querySelector('#gray .input .connector') );
+const line0 = new LeaderLine( document.querySelector('#image .output .connector'), document.querySelector('#gray .input .connector'), {"onmouseover": evt=>{console.log("test")}} );
 draggable0.onDrag = function(position) { line0.position() }
 draggable1.onDrag = function(position) { line0.position(); line1.position() }
 
