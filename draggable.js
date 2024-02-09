@@ -1,7 +1,7 @@
 
 let draggable = null
 let link = null
-const links = []
+
 
 document.addEventListener("mousedown", draggable_mousedown)
 document.addEventListener("mouseup", draggable_mouseup)
@@ -72,7 +72,7 @@ function draggable_mousemove(evt) {
 
         draggable.transform.baseVal[0].setTranslate(x, y)
 
-        const catFound = new CustomEvent("animalfound", { detail: { name: "cat" } });
+        const catFound = new CustomEvent("linkable-event", { detail: { name: "cat" } });
         const anchors = draggable.querySelectorAll(".anchor")
         for(const anchor of anchors) {
             anchor.dispatchEvent(catFound)
@@ -101,10 +101,17 @@ function linkable_mouseup(evt) {
             }
         }
 
-        if(anchor !== null) {
+        if(anchor === null) {
             console.log("linkable_mouseup")
-            link_connect(link, evt.target)
-            links.push(link)
+            link.remove()
+            link = null
+        }
+        else {
+            console.log("linkable_mouseup")
+            const src = document.querySelector(`[data-linkable-id="${link.id}"][data-linkable-type="src"]`)
+            const new_link = link_create(src, anchor)
+
+            link.remove()
             link = null
         }
     }
@@ -114,9 +121,15 @@ function linkable_mouseup(evt) {
 function linkable_mousemove(evt) {
     if(link !== null) {
 
-        const pbox = link.elem.ownerSVGElement.getBoundingClientRect()
-        const d = `M ${link.ori.x},${link.ori.y} L ${evt.clientX - pbox.x},${evt.clientY - pbox.y}`
-        link.elem.setAttribute("d", d)
+        const pbox = link.ownerSVGElement.getBoundingClientRect()
+
+        const src = document.querySelector(`[data-linkable-id="${link.id}"][data-linkable-type="src"]`)
+        const bbox = src.getBoundingClientRect()
+        const src_x = bbox.x + bbox.width / 2 - pbox.x
+        const src_y = bbox.y + bbox.height / 2 - pbox.y
+
+        const d = `M ${src_x},${src_y} L ${evt.clientX - pbox.x},${evt.clientY - pbox.y}`
+        link.setAttribute("d", d)
     }
 }
 
@@ -145,86 +158,71 @@ function create_node(title="Node 1", x=50, y=250) {
     transform.setTranslate(x, y)
     g.transform.baseVal.appendItem(transform)
     svg.appendChild(g)
+    return g
 }
 
 
-function link_create(elem0, elem1=null) {
+function link_create(src_elem, dst_elem=null) {
 
-    if(elem0 === null) return
+    if(src_elem === null) return
 
     const svg = document.querySelector("svg")
-    const pbox = elem0.ownerSVGElement.getBoundingClientRect()
+    const pbox = src_elem.ownerSVGElement.getBoundingClientRect()
     
-    const sbox = elem0.getBoundingClientRect()
-    const ori = { x: 0, y: 0 }
-    ori.x = sbox.x + sbox.width / 2 - pbox.x
-    ori.y = sbox.y + sbox.height / 2 - pbox.y
+    const id = "L" + Math.trunc(Math.random() * 1000000)
 
-    const dst = { x: ori.x, y: ori.y }
-    if(elem1 !== null) {
-        const sbox = elem1.getBoundingClientRect()
-        dst.x = sbox.x + sbox.width / 2 - pbox.x
-        dst.y = sbox.y + sbox.height / 2 - pbox.y
+    src_elem.dataset.linkableId = id
+    src_elem.dataset.linkableType = "src"
+    const bbox = src_elem.getBoundingClientRect()
+
+    const src_x = bbox.x + bbox.width / 2 - pbox.x
+    const src_y = bbox.y + bbox.height / 2 - pbox.y
+
+    let dst_x = src_x
+    let dst_y = src_y
+    if(dst_elem !== null) {
+        dst_elem.dataset.linkableId = id
+        dst_elem.dataset.linkableType = "dst"
+        const bbox = dst_elem.getBoundingClientRect()
+        dst_x = bbox.x + bbox.width / 2 - pbox.x
+        dst_y = bbox.y + bbox.height / 2 - pbox.y
     }
 
     const p = document.createElementNS("http://www.w3.org/2000/svg", "path")
-    p.classList.add("link")
+    p.classList.add("linkable")
 
-    const d = `M ${ori.x},${ori.y} L ${dst.x},${dst.y}`
+    p.setAttribute("id", id)
+    const d = `M ${src_x},${src_y} L ${dst_x},${dst_y}`
     p.setAttribute("d", d)
 
     svg.appendChild(p)
 
-    const obj = { 
-        ori: ori, 
-        dst: dst, 
-        ori_elem: elem0, 
-        dst_elem: elem1, 
-        elem: p 
+    src_elem.addEventListener("linkable-event", link_callback)
+    if(dst_elem !== null) {
+        dst_elem.addEventListener("linkable-event", link_callback)
     }
-    elem0.addEventListener("animalfound", link_callback.bind(obj))
 
-    return obj
+    return p
 }
 
 
 function link_callback(evt) {
 
-    // console.log(this)
-    // console.log(evt.currentTarget)
+    const link = document.querySelector(`#${evt.target.dataset.linkableId}`)
 
-    const pbox = this.elem.ownerSVGElement.getBoundingClientRect()
+    const pbox = link.ownerSVGElement.getBoundingClientRect()
 
-    const sbox = this.ori_elem.getBoundingClientRect()
-    this.ori.x = sbox.x + sbox.width / 2 - pbox.x
-    this.ori.y = sbox.y + sbox.height / 2 - pbox.y
+    const src = document.querySelector(`[data-linkable-id="${link.id}"][data-linkable-type="src"]`)
+    const sbox = src.getBoundingClientRect()
+    const src_x = sbox.x + sbox.width / 2 - pbox.x
+    const src_y = sbox.y + sbox.height / 2 - pbox.y
 
-    if(this.dst_elem !== null) {
-        const sbox = this.dst_elem.getBoundingClientRect()
-        this.dst.x = sbox.x + sbox.width / 2
-        this.dst.y = sbox.y + sbox.height / 2
-    }
+    const dst = document.querySelector(`[data-linkable-id="${link.id}"][data-linkable-type="dst"]`)
+    const dbox = dst.getBoundingClientRect()
+    const dst_x = dbox.x + dbox.width / 2 - pbox.x
+    const dst_y = dbox.y + dbox.height / 2 - pbox.y
 
-    const d = `M ${this.ori.x},${this.ori.y} L ${this.dst.x},${this.dst.y}`
-    this.elem.setAttribute("d", d)
+    const d = `M ${src_x},${src_y} L ${dst_x},${dst_y}`
+    link.setAttribute("d", d)
 }
 
-
-function link_connect(link, dst_elem) {
-
-    if(dst_elem === null) return
-
-    const svg = document.querySelector("svg")
-    const pbox = dst_elem.ownerSVGElement.getBoundingClientRect()
-    
-    const sbox = dst_elem.getBoundingClientRect()
-    const dst = { x: 0, y: 0 }
-    dst.x = sbox.x + sbox.width / 2 - pbox.x
-    dst.y = sbox.y + sbox.height / 2 - pbox.y
-    const d = `M ${ori.x},${ori.y} L ${dst.x},${dst.y}`
-    link.elem.setAttribute("d", d)
-    link.dst_elem = dst_elem
-    link.dst_elem.addEventListener("animalfound", link_callback.bind(obj))
-    link.dst = dst
-    return link
-}
