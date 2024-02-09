@@ -92,12 +92,20 @@ function linkable_mousedown(evt) {
 
 function linkable_mouseup(evt) {
     if(link !== null) {
+        let anchor = null
+        const elems = document.elementsFromPoint(evt.clientX, evt.clientY)
+        for(const elem of elems) {
+            if(elem.classList.contains("anchor")) {
+                anchor = elem
+                break
+            }
+        }
 
-        if(evt.target.classList.contains("anchor")) {
+        if(anchor !== null) {
             console.log("linkable_mouseup")
             link_connect(link, evt.target)
             links.push(link)
-            link = null			
+            link = null
         }
     }
 }
