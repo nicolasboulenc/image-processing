@@ -13,6 +13,7 @@ document.addEventListener("mousemove", linkable_mousemove)
 
 create_node("Node 1")
 create_node("Node 2", 300, 400)
+create_node("Node 3", 600, 400)
 
 
 function draggable_mousedown(evt) {
