@@ -1,4 +1,14 @@
 
+class ID_Generator {
+    #id
+    constructor() {
+        this.id = 1
+    }
+    next(prefix) {
+        return `${prefix}${"0".repeat(8-this.id.toString().length)}${this.id++}`
+    }
+}
+
 let draggable = null
 let link = null
 
@@ -15,6 +25,8 @@ create_node("Node 1")
 create_node("Node 2", 300, 400)
 create_node("Node 3", 600, 400)
 
+
+const id_gen = new ID_Generator()
 
 function draggable_mousedown(evt) {
 
@@ -104,15 +116,15 @@ function linkable_mouseup(evt) {
 
         if(anchor === null) {
             console.log("linkable_mouseup")
-            link.remove()
+            link.parentElement.remove()
             link = null
         }
         else {
             console.log("linkable_mouseup")
-            const src = document.querySelector(`[data-linkable-id="${link.id}"][data-linkable-type="src"]`)
+            const src = document.querySelector(`[data-linkable-id="${link.dataset.linkableSrc}"]`)
             const new_link = link_create(src, anchor)
 
-            link.remove()
+            link.parentElement.remove()
             link = null
         }
     }
@@ -124,7 +136,7 @@ function linkable_mousemove(evt) {
 
         const pbox = link.ownerSVGElement.getBoundingClientRect()
 
-        const src = document.querySelector(`[data-linkable-id="${link.id}"][data-linkable-type="src"]`)
+        const src = document.querySelector(`[data-linkable-id="${link.dataset.linkableSrc}"]`)
         const bbox = src.getBoundingClientRect()
         const src_x = bbox.x + bbox.width / 2 - pbox.x
         const src_y = bbox.y + bbox.height / 2 - pbox.y
@@ -170,10 +182,9 @@ function link_create(src_elem, dst_elem=null) {
     const svg = document.querySelector("svg")
     const pbox = src_elem.ownerSVGElement.getBoundingClientRect()
     
-    const id = "L" + Math.trunc(Math.random() * 1000000)
-
-    src_elem.dataset.linkableId = id
-    src_elem.dataset.linkableType = "src"
+    if(typeof src_elem.dataset.linkableId === "undefined") {
+        src_elem.dataset.linkableId = id_gen.next("A")
+    }
     const bbox = src_elem.getBoundingClientRect()
 
     const src_x = bbox.x + bbox.width / 2 - pbox.x
@@ -182,21 +193,49 @@ function link_create(src_elem, dst_elem=null) {
     let dst_x = src_x
     let dst_y = src_y
     if(dst_elem !== null) {
-        dst_elem.dataset.linkableId = id
+        if(typeof dst_elem.dataset.linkableId == "undefined") {
+            dst_elem.dataset.linkableId = id_gen.next("A")
+        }
         dst_elem.dataset.linkableType = "dst"
         const bbox = dst_elem.getBoundingClientRect()
         dst_x = bbox.x + bbox.width / 2 - pbox.x
         dst_y = bbox.y + bbox.height / 2 - pbox.y
     }
 
+    // line
     const p = document.createElementNS("http://www.w3.org/2000/svg", "path")
-    p.classList.add("linkable")
+    p.dataset.linkableSrc = src_elem.dataset.linkableId
+    p.classList.add("link")
+    if(dst_elem !== null) {
+        p.dataset.linkableDst = dst_elem.dataset.linkableId
+    }
 
-    p.setAttribute("id", id)
     const d = `M ${src_x},${src_y} L ${dst_x},${dst_y}`
     p.setAttribute("d", d)
 
-    svg.appendChild(p)
+    // arrow
+    const a = document.createElementNS("http://www.w3.org/2000/svg", "path")
+    a.classList.add("arrow")
+
+    const arrow_angle = Math.PI / 4
+    const arrow_length = 20
+    const line_angle = Math.tanh((dst_y - src_y) / (dst_x - src_x))
+    console.log(line_angle)
+    const x1 = dst_x + Math.cos(arrow_angle - line_angle) * arrow_length
+    const y1 = dst_y + Math.sin(arrow_angle - line_angle) * arrow_length
+
+    const x2 = dst_x - Math.cos(arrow_angle - line_angle) * arrow_length
+    const y2 = dst_y - Math.sin(arrow_angle - line_angle) * arrow_length
+
+    const ad = `M ${x1},${y1} L ${dst_x},${dst_y} L ${x2},${y2}`
+    a.setAttribute("d", ad)
+
+
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g")
+    g.classList.add("linkable")
+    g.appendChild(p)
+    g.appendChild(a)
+    svg.appendChild(g)
 
     src_elem.addEventListener("linkable-event", link_callback)
     if(dst_elem !== null) {
@@ -209,16 +248,30 @@ function link_create(src_elem, dst_elem=null) {
 
 function link_callback(evt) {
 
-    const link = document.querySelector(`#${evt.target.dataset.linkableId}`)
+    const anchor = evt.target
+
+    let links = document.querySelectorAll(`[data-linkable-src="${anchor.dataset.linkableId}"]`)
+    for(const link of links) {
+        link_update(link)
+    }
+
+    links = document.querySelectorAll(`[data-linkable-dst="${anchor.dataset.linkableId}"]`)
+    for(const link of links) {
+        link_update(link)
+    }
+}
+
+
+function link_update(link) {
 
     const pbox = link.ownerSVGElement.getBoundingClientRect()
 
-    const src = document.querySelector(`[data-linkable-id="${link.id}"][data-linkable-type="src"]`)
+    const src = document.querySelector(`[data-linkable-id="${link.dataset.linkableSrc}"]`)
     const sbox = src.getBoundingClientRect()
     const src_x = sbox.x + sbox.width / 2 - pbox.x
     const src_y = sbox.y + sbox.height / 2 - pbox.y
 
-    const dst = document.querySelector(`[data-linkable-id="${link.id}"][data-linkable-type="dst"]`)
+    const dst = document.querySelector(`[data-linkable-id="${link.dataset.linkableDst}"]`)
     const dbox = dst.getBoundingClientRect()
     const dst_x = dbox.x + dbox.width / 2 - pbox.x
     const dst_y = dbox.y + dbox.height / 2 - pbox.y
@@ -226,4 +279,3 @@ function link_callback(evt) {
     const d = `M ${src_x},${src_y} L ${dst_x},${dst_y}`
     link.setAttribute("d", d)
 }
-
